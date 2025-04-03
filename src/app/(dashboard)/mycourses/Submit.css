@@ -1,0 +1,131 @@
+/* 전체 컨테이너 */
+.submit-assignment-container {
+  padding: 40px;
+  background-color: #f9f9f9;
+  border-radius: 10px;
+  box-shadow: 0 10px 20px rgba(0, 0, 0, 0.1);
+  max-width: 900px;
+  margin: 50px auto;
+  font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
+}
+
+/* 헤딩 스타일 */
+.submit-assignment-container h1 {
+  font-size: 2.5rem;
+  font-weight: 600;
+  color: #333;
+  margin-bottom: 20px;
+  text-align: center;
+}
+
+/* 과제 정보 테이블 */
+.assignment-info {
+  margin-bottom: 30px;
+  background-color: #fff;
+  padding: 20px;
+  border-radius: 8px;
+  box-shadow: 0 2px 6px rgba(0, 0, 0, 0.1);
+}
+
+.assignment-info h2 {
+  font-size: 1.6rem;
+  color: #444;
+  margin-bottom: 15px;
+  text-align: center;
+  font-weight: 600;
+}
+
+.assignment-info table {
+  width: 100%;
+  border-collapse: collapse;
+}
+
+.assignment-info table td {
+  padding: 15px;
+  border-bottom: 1px solid #e0e0e0;
+  text-align: left;
+  font-size: 1rem;
+}
+
+.assignment-info table td:first-child {
+  font-weight: 600;
+  color: #555;
+}
+
+.assignment-info table td:last-child {
+  color: #888;
+}
+
+.assignment-info table tr:last-child td {
+  border-bottom: none;
+}
+
+/* 제출 버튼 */
+.submit-btn {
+  display: block;
+  width: 100%;
+  background-color: #007bff;
+  color: white;
+  border: none;
+  padding: 12px 20px;
+  border-radius: 5px;
+  font-size: 1.2rem;
+  cursor: pointer;
+  transition: background-color 0.3s ease, transform 0.2s ease;
+  margin-top: 20px;
+}
+
+.submit-btn:hover {
+  background-color: #0056b3;
+  transform: translateY(-3px);
+}
+
+.submit-btn:focus {
+  outline: none;
+}
+
+/* 파일 업로드 스타일 */
+.file-input {
+  margin-bottom: 20px;
+  font-size: 1.1rem;
+}
+
+.file-input input[type="file"] {
+  padding: 12px;
+  background-color: #f1f1f1;
+  border-radius: 5px;
+  width: 100%;
+  font-size: 1rem;
+  color: #555;
+  border: 1px solid #ddd;
+  margin-bottom: 10px;
+}
+
+.file-input input[type="file"]:hover {
+  background-color: #e0e0e0;
+}
+
+.file-input input[type="file"]:focus {
+  outline: none;
+}
+
+/* 파일 업로드 아이콘 */
+.file-input .fa-file-upload {
+  font-size: 1.5rem;
+  color: #007bff;
+  margin-right: 8px;
+  vertical-align: middle;
+}
+
+/* 과제 제출 상태 */
+.assignment-status {
+  font-size: 1rem;
+  margin-top: 10px;
+  color: #007bff;
+}
+
+/* 전체 테이블 스타일 */
+.assignment-info td {
+  font-size: 16px;
+  color: #555;
+}

@@ -1,0 +1,102 @@
+/* 수강 중인 강좌 페이지 스타일 */
+.course-card {
+  background-color: #ffffff;
+  border: 1px solid #e0e0e0;
+  border-radius: 8px;
+  margin-bottom: 20px;
+  padding: 20px;
+  box-shadow: 0 2px 5px rgba(0, 0, 0, 0.1);
+}
+
+.course-header {
+  display: flex;
+  justify-content: space-between;
+  margin-bottom: 15px;
+}
+
+.course-type {
+  font-size: 14px;
+  font-weight: bold;
+  background-color: #007bff;
+  color: white;
+  padding: 4px 8px;
+  border-radius: 4px;
+}
+
+.course-status {
+  font-size: 14px;
+  color: green;
+  font-weight: bold;
+}
+
+.course-card h3 {
+  font-size: 18px;
+  margin: 10px 0;
+}
+
+.course-card p {
+  font-size: 14px;
+  color: #555;
+}
+
+.view-details {
+  color: #007bff;
+  text-decoration: none;
+  font-weight: bold;
+}
+
+.view-details:hover {
+  text-decoration: underline;
+}
+
+
+/* 수강 중인 강좌 페이지 스타일 */
+.course-card {
+  background-color: #ffffff;
+  border: 1px solid #e0e0e0;
+  border-radius: 8px;
+  margin-bottom: 20px;
+  padding: 20px;
+  box-shadow: 0 2px 5px rgba(0, 0, 0, 0.1);
+}
+
+.course-header {
+  display: flex;
+  justify-content: space-between;
+  margin-bottom: 15px;
+}
+
+.course-type {
+  font-size: 14px;
+  font-weight: bold;
+  background-color: #007bff;
+  color: white;
+  padding: 4px 8px;
+  border-radius: 4px;
+}
+
+.course-status {
+  font-size: 14px;
+  color: green;
+  font-weight: bold;
+}
+
+.course-card h3 {
+  font-size: 18px;
+  margin: 10px 0;
+}
+
+.course-card p {
+  font-size: 14px;
+  color: #555;
+}
+
+.view-details {
+  color: #007bff;
+  text-decoration: none;
+  font-weight: bold;
+}
+
+.view-details:hover {
+  text-decoration: underline;
+}
