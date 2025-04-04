@@ -1,4 +1,4 @@
-/* 수강 중인 강좌 페이지 스타일 */
+/* 수강 중인 강좌 카드 스타일 */
 .course-card {
   background-color: #ffffff;
   border: 1px solid #e0e0e0;
@@ -8,6 +8,7 @@
   box-shadow: 0 2px 5px rgba(0, 0, 0, 0.1);
 }
 
+/* 카드 상단 타입/상태 표시 */
 .course-header {
   display: flex;
   justify-content: space-between;
@@ -29,16 +30,19 @@
   font-weight: bold;
 }
 
+/* 강좌 제목 */
 .course-card h3 {
   font-size: 18px;
   margin: 10px 0;
 }
 
+/* 기본 텍스트 */
 .course-card p {
   font-size: 14px;
   color: #555;
 }
 
+/* 상세보기 링크 */
 .view-details {
   color: #007bff;
   text-decoration: none;
@@ -49,54 +53,10 @@
   text-decoration: underline;
 }
 
-
-/* 수강 중인 강좌 페이지 스타일 */
-.course-card {
-  background-color: #ffffff;
-  border: 1px solid #e0e0e0;
-  border-radius: 8px;
-  margin-bottom: 20px;
-  padding: 20px;
-  box-shadow: 0 2px 5px rgba(0, 0, 0, 0.1);
-}
-
-.course-header {
-  display: flex;
-  justify-content: space-between;
-  margin-bottom: 15px;
-}
-
-.course-type {
-  font-size: 14px;
+/* 동영상 시청 완료 체크 */
+.watched-check {
+  color: #28a745 !important;
   font-weight: bold;
-  background-color: #007bff;
-  color: white;
-  padding: 4px 8px;
-  border-radius: 4px;
-}
-
-.course-status {
-  font-size: 14px;
-  color: green;
-  font-weight: bold;
-}
-
-.course-card h3 {
-  font-size: 18px;
-  margin: 10px 0;
-}
-
-.course-card p {
-  font-size: 14px;
-  color: #555;
-}
-
-.view-details {
-  color: #007bff;
-  text-decoration: none;
-  font-weight: bold;
-}
-
-.view-details:hover {
-  text-decoration: underline;
+  margin: 8px 0;
+  display: block; /* ✅ 줄바꿈 확실히 */
 }
