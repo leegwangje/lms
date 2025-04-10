@@ -1,4 +1,5 @@
 "use client";
+
 import React, { useState, useEffect } from "react";
 import "@/app/(dashboard)/mycourses/Attendance.css";
 
@@ -18,7 +19,9 @@ const Attendance = () => {
       });
   }, []);
 
-  const selectedCourse = attendanceData.find((c) => c.lectureId === selectedCourseId);
+  const selectedCourse = attendanceData.find(
+    (c) => c.lectureId === selectedCourseId
+  );
 
   return (
     <div className="attendance-wrapper">
@@ -30,7 +33,9 @@ const Attendance = () => {
         {attendanceData.map((course) => (
           <div
             key={course.lectureId}
-            className="attendance-card"
+            className={`attendance-card ${
+              selectedCourseId === course.lectureId ? "selected" : ""
+            }`}
             onClick={() => setSelectedCourseId(course.lectureId)}
           >
             <h3 className="clickable">{course.courseName}</h3>
@@ -47,24 +52,31 @@ const Attendance = () => {
         ))}
       </div>
 
-      {/* 오른쪽: 주차별 출석현황 */}
+      {/* 오른쪽: 주차별 출석 상세 (항상 존재) */}
       <div className="weekly-view">
         {selectedCourse ? (
           <>
             <h2>{selectedCourse.courseName} - 주차별 출석</h2>
             <ul>
-              {selectedCourse.weeklyStatus.map((status, idx) => (
+              {selectedCourse.weeklyStatus.map((week, idx) => (
                 <li key={idx}>
-                  {idx + 1}주차:{" "}
-                  <span className={status === "출석" ? "present" : "absent"}>
-                    {status}
+                  {week.weekTitle
+                    ? `${idx + 1}주차 - ${week.weekTitle}`
+                    : `${idx + 1}주차`}
+                  {" "}
+                  <span
+                    className={week.status === "출석" ? "present" : "absent"}
+                  >
+                    {week.status}
                   </span>
                 </li>
               ))}
             </ul>
           </>
         ) : (
-          <p className="empty-text">강좌를 선택하면 주차별 출석현황이 표시됩니다.</p>
+          <p className="empty-text">
+            강좌를 선택하면 주차별 출석현황이 표시됩니다.
+          </p>
         )}
       </div>
     </div>

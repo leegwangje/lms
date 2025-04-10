@@ -142,3 +142,22 @@
   margin-top: 60px;
   font-size: 1.1rem;
 }
+
+.weekly-view {
+  flex: 1;
+  padding: 30px 25px;
+  background-color: #f8fbff;
+  border-radius: 16px;
+  box-shadow: 0 10px 25px rgba(0, 123, 255, 0.1);
+  transition: all 0.3s ease;
+}
+
+.weekly-view.visible {
+  opacity: 1;
+  transform: translateX(0);
+  pointer-events: auto;
+}
+
+.weekly-view.hidden {
+  display: none;
+}
