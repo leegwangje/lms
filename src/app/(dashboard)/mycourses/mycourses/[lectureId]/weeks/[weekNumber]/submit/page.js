@@ -6,22 +6,22 @@ import { FaFileUpload } from "react-icons/fa";
 import "@/app/(dashboard)/mycourses/Submit.css";
 
 const SubmitAssignment = () => {
-  const { lectureId, weekId } = useParams();
+  const { lectureId, weekNumber } = useParams(); // ✅ 수정: weekId → weekNumber
 
   const [file, setFile] = useState(null);
   const [status, setStatus] = useState("");
   const [assignment, setAssignment] = useState(null);
 
-  // 과제 정보 및 제출 상태 불러오기
+  // ✅ 과제 정보 및 제출 상태 불러오기
   useEffect(() => {
     const stdtId = 20250001;
 
-    fetch(`http://localhost:8080/api/mycourses/weeks/${weekId}/assignment`)
+    fetch(`http://localhost:8080/api/mycourses/${lectureId}/week/${weekNumber}/assignment`)
       .then((res) => res.json())
       .then((data) => {
         setAssignment(data);
 
-        // 추가: 과제 제출 여부 확인
+        // ✅ 과제 제출 여부 확인
         if (data?.assignmentId) {
           fetch(`http://localhost:8080/api/mycourses/assignments/${data.assignmentId}/submit`)
             .then((res) => res.json())
@@ -35,7 +35,7 @@ const SubmitAssignment = () => {
       .catch((err) => {
         console.error("❌ 과제 정보 조회 실패:", err);
       });
-  }, [weekId]);
+  }, [lectureId, weekNumber]);
 
   const handleFileChange = (e) => {
     setFile(e.target.files[0]);
@@ -52,7 +52,7 @@ const SubmitAssignment = () => {
     const formData = new FormData();
     formData.append("file", file);
     formData.append("lectureId", lectureId);
-    formData.append("weekId", weekId);
+    formData.append("weekNumber", weekNumber); // ✅ weekNumber를 weekId로 전달
     formData.append("stdtId", 20250001);
 
     try {
@@ -63,7 +63,7 @@ const SubmitAssignment = () => {
 
       if (response.ok) {
         setStatus("제출됨");
-        alert(`${weekId}주차 과제가 성공적으로 제출되었습니다.`);
+        alert(`${weekNumber}주차 과제가 성공적으로 제출되었습니다.`);
       } else {
         setStatus("제출 실패");
         alert("과제 제출에 실패했습니다.");
@@ -76,7 +76,7 @@ const SubmitAssignment = () => {
 
   return (
     <div className="submit-assignment-container">
-      <h1>{weekId}주차 과제 제출</h1>
+      <h1>{weekNumber}주차 과제 제출</h1>
 
       <div className="assignment-info">
         <h2>제출 상세</h2>

@@ -1,35 +1,24 @@
 "use client";
-import React, { useState } from "react";
+import React, { useState, useEffect } from "react";
 import "@/app/(dashboard)/mycourses/Attendance.css";
 
 const Attendance = () => {
   const [selectedCourseId, setSelectedCourseId] = useState(null);
+  const [attendanceData, setAttendanceData] = useState([]);
 
-  const attendanceData = [
-    {
-      id: 1,
-      courseName: "동물보호법, 확장용",
-      instructor: "이수민",
-      attendanceRate: 92,
-      weeklyStatus: ["출석", "출석", "결석", "출석", "출석"],
-    },
-    {
-      id: 2,
-      courseName: "비상경계 심플 안전교육",
-      instructor: "박은정",
-      attendanceRate: 60,
-      weeklyStatus: ["결석", "결석", "출석", "결석", "출석"],
-    },
-    {
-      id: 3,
-      courseName: "스마트 자율 운영 교육",
-      instructor: "김영호",
-      attendanceRate: 75,
-      weeklyStatus: ["출석", "출석", "출석", "결석", "출석"],
-    },
-  ];
+  // ✅ 출석 정보 불러오기
+  useEffect(() => {
+    fetch("http://localhost:8080/api/attendance/status/20250001")
+      .then((res) => res.json())
+      .then((data) => {
+        setAttendanceData(data);
+      })
+      .catch((err) => {
+        console.error("출석 정보 불러오기 실패:", err);
+      });
+  }, []);
 
-  const selectedCourse = attendanceData.find(c => c.id === selectedCourseId);
+  const selectedCourse = attendanceData.find((c) => c.lectureId === selectedCourseId);
 
   return (
     <div className="attendance-wrapper">
@@ -40,9 +29,9 @@ const Attendance = () => {
 
         {attendanceData.map((course) => (
           <div
-            key={course.id}
+            key={course.lectureId}
             className="attendance-card"
-            onClick={() => setSelectedCourseId(course.id)}
+            onClick={() => setSelectedCourseId(course.lectureId)}
           >
             <h3 className="clickable">{course.courseName}</h3>
             <p>강의자: {course.instructor}</p>
