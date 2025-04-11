@@ -8,62 +8,48 @@ import YouTube from "react-youtube";
 import "@/app/(dashboard)/mycourses/mycourses-view.css";
 
 const CourseDetail = () => {
-  const [userInfo, setUserInfo] = useState({});
   const { lectureId } = useParams();
+
+  const [token, setToken] = useState(null);
   const [weeks, setWeeks] = useState([]);
   const [contents, setContents] = useState({});
   const [assignments, setAssignments] = useState([]);
 
-
+  // ✅ 토큰 꺼내기
   useEffect(() => {
-    if (typeof window === "undefined") return;
-
-    // ✅ 토큰 꺼내기
-    const raw = localStorage.getItem("jwt");
-    let token = null;
-
-    try {
-      token = raw ;
-
-    } catch (e) {
-      console.error("❌ JWT 파싱 오류:", e);
-      alert("토큰 파싱 오류");
-      location.href = "/login";
-      return;
-    }
-    if (!token) {
+    const accessToken = localStorage.getItem("jwt");
+    if (!accessToken) {
       alert("로그인이 필요합니다.");
       location.href = "/login";
       return;
     }
+    setToken(accessToken);
+  }, []);
 
-    // ✅ 주차 목록 가져오기
+  // ✅ 데이터 불러오기
+  useEffect(() => {
+    if (!token || !lectureId) return;
+
     fetch(`http://localhost:8080/api/mycourses/${lectureId}/weeks`, {
-      method: "GET",
       headers: {
         "Content-Type": "application/json",
-        "Authorization": `Bearer ${token}`,
+        Authorization: `Bearer ${token}`,
       },
-      credentials: "include",
     })
-      .then((res) => {
-        if (!res.ok) throw new Error("인증 실패");
-        return res.json();
-      })
+      .then((res) => res.json())
       .then((data) => {
         setWeeks(data);
 
-
-
-        // ✅ 주차별 콘텐츠 가져오기
         data.forEach((week) => {
-          fetch(`http://localhost:8080/api/mycourses/${lectureId}/week/${week.weekNumber}/contents`, {
-            method: "GET",
-            headers: {
-              "Authorization": `Bearer ${token}`,
-              "Content-Type": "application/json",
-            },
-          })
+          fetch(
+            `http://localhost:8080/api/mycourses/${lectureId}/week/${week.weekNumber}/contents`,
+            {
+              headers: {
+                "Content-Type": "application/json",
+                Authorization: `Bearer ${token}`,
+              },
+            }
+          )
             .then((res) => res.json())
             .then((contentList) => {
               setContents((prev) => ({
@@ -74,21 +60,19 @@ const CourseDetail = () => {
         });
       });
 
-    // ✅ 과제 목록 가져오기
     fetch(`http://localhost:8080/api/mycourses/${lectureId}/assignments`, {
-      method: "GET",
       headers: {
         "Content-Type": "application/json",
-        "Authorization": `Bearer ${token}`,
+        Authorization: `Bearer ${token}`,
       },
     })
       .then((res) => res.json())
       .then((data) => setAssignments(data));
-  }, [lectureId]);
+  }, [token, lectureId]);
 
   // ✅ 출석 체크
   const handleWatchProgress = (e, content) => {
-    if (e.data === 1) {
+    if (e.data === 1 && token) {
       const duration = e.target.getDuration();
       let watched = 0;
       let marked = false;
@@ -105,17 +89,16 @@ const CourseDetail = () => {
             method: "POST",
             headers: {
               "Content-Type": "application/json",
-              "Authorization": `Bearer ${token}`,
+              Authorization: `Bearer ${token}`,
             },
             body: JSON.stringify({
               lectureId,
               contentId: content.lectureManagementId,
-              stdtId: 20250001, // 추후 JWT에서 파싱하여 넣도록 변경 가능
             }),
           });
         }
 
-        if (e.target.getPlayerState() !== 1) {
+        if (e.target.getPlayerState() !== 1 || marked) {
           clearInterval(interval);
         }
       }, 1000);
@@ -134,33 +117,45 @@ const CourseDetail = () => {
           {/* 🎥 동영상 */}
           <div>
             <h4>동영상</h4>
-            {contents[week.weekNumber]?.map((c, idx) => (
-              c.youtubeVideoId && (
-                <div key={`video-${week.weekNumber}-${idx}`} style={{ marginBottom: "20px" }}>
-                  <h5>{c.chapterName}</h5>
-                  <YouTube
-                    videoId={c.youtubeVideoId}
-                    id={`player-${week.weekNumber}-${idx}`}
-                    opts={{ width: "560", height: "315", playerVars: { autoplay: 0 } }}
-                    onReady={() => console.log(`🎬 ${c.chapterName} 준비 완료`)}
-                    onStateChange={(e) => handleWatchProgress(e, c)}
-                  />
-                </div>
-              )
-            ))}
+            {contents[week.weekNumber]?.map(
+              (c, idx) =>
+                c.youtubeVideoId && (
+                  <div
+                    key={`video-${week.weekNumber}-${idx}`}
+                    style={{ marginBottom: "20px" }}
+                  >
+                    <h5>{c.chapterName}</h5>
+                    <YouTube
+                      videoId={c.youtubeVideoId}
+                      id={`player-${week.weekNumber}-${idx}`}
+                      opts={{
+                        width: "560",
+                        height: "315",
+                        playerVars: { autoplay: 0 },
+                      }}
+                      onReady={() =>
+                        console.log(`🎬 ${c.chapterName} 준비 완료`)
+                      }
+                      onStateChange={(e) => handleWatchProgress(e, c)}
+                    />
+                  </div>
+                )
+            )}
           </div>
 
           {/* 📝 과제 제출 */}
           <div>
             <h4>과제 제출</h4>
-            <Link href={`/mycourses/mycourses/${lectureId}/weeks/${week.weekNumber}/submit`}>
+            <Link
+              href={`/mycourses/mycourses/${lectureId}/weeks/${week.weekNumber}/submit`}
+            >
               <button className="submit-assignment-btn">
                 <FaUpload /> {index + 1}주차 과제 제출
               </button>
             </Link>
           </div>
 
-          {/* 📚 학습자료 */}
+          {/* 📚 학습 자료 */}
           <h4>학습 자료</h4>
           <ul>
             {contents[week.weekNumber]?.map((c, idx) => (
