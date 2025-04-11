@@ -8,21 +8,62 @@ import YouTube from "react-youtube";
 import "@/app/(dashboard)/mycourses/mycourses-view.css";
 
 const CourseDetail = () => {
+
   const { lectureId } = useParams();
   const [weeks, setWeeks] = useState([]);
   const [contents, setContents] = useState({});
   const [assignments, setAssignments] = useState([]);
 
+
   useEffect(() => {
+    if (typeof window === "undefined") return;
+
+    // ✅ 토큰 꺼내기
+    const raw = localStorage.getItem("jwt");
+    let token = null;
+
+    try {
+      token = raw ;
+
+    } catch (e) {
+      console.error("❌ JWT 파싱 오류:", e);
+      alert("토큰 파싱 오류");
+      location.href = "/login";
+      return;
+    }
+    if (!token) {
+      alert("로그인이 필요합니다.");
+      location.href = "/login";
+      return;
+    }
+
     // ✅ 주차 목록 가져오기
-    fetch(`http://localhost:8080/api/mycourses/${lectureId}/weeks`)
-      .then((res) => res.json())
+    fetch(`http://localhost:8080/api/mycourses/${lectureId}/weeks`, {
+      method: "GET",
+      headers: {
+        "Content-Type": "application/json",
+        "Authorization": `Bearer ${token}`,
+      },
+      credentials: "include",
+    })
+      .then((res) => {
+        if (!res.ok) throw new Error("인증 실패");
+        return res.json();
+      })
       .then((data) => {
         setWeeks(data);
 
-        // ✅ 주차별 콘텐츠 가져오기 (weekId → weekNumber로 수정)
+
+
+        // ✅ 주차별 콘텐츠 가져오기
         data.forEach((week) => {
-          fetch(`http://localhost:8080/api/mycourses/${lectureId}/week/${week.weekNumber}/contents`)
+          fetch(`http://localhost:8080/api/mycourses/${lectureId}/week/${week.weekNumber}/contents`, {
+            method: "GET",
+            headers: {
+              "Authorization": `Bearer ${token}`,
+              "Content-Type": "application/json",
+            },
+          })
             .then((res) => res.json())
             .then((contentList) => {
               setContents((prev) => ({
@@ -33,8 +74,14 @@ const CourseDetail = () => {
         });
       });
 
-    // ✅ 과제 목록 (선택)
-    fetch(`http://localhost:8080/api/mycourses/${lectureId}/assignments`)
+    // ✅ 과제 목록 가져오기
+    fetch(`http://localhost:8080/api/mycourses/${lectureId}/assignments`, {
+      method: "GET",
+      headers: {
+        "Content-Type": "application/json",
+        "Authorization": `Bearer ${token}`,
+      },
+    })
       .then((res) => res.json())
       .then((data) => setAssignments(data));
   }, [lectureId]);
@@ -58,11 +105,12 @@ const CourseDetail = () => {
             method: "POST",
             headers: {
               "Content-Type": "application/json",
+              "Authorization": `Bearer ${token}`,
             },
             body: JSON.stringify({
               lectureId,
               contentId: content.lectureManagementId,
-              stdtId: 20250001,
+              stdtId: 20250001, // 추후 JWT에서 파싱하여 넣도록 변경 가능
             }),
           });
         }
