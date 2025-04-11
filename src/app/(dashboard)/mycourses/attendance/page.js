@@ -6,10 +6,30 @@ import "@/app/(dashboard)/mycourses/Attendance.css";
 const Attendance = () => {
   const [selectedCourseId, setSelectedCourseId] = useState(null);
   const [attendanceData, setAttendanceData] = useState([]);
+  const [token, setToken] = useState(null);
+
+  // ✅ 토큰 꺼내기
+  useEffect(() => {
+    if (typeof window === "undefined") return;
+
+    const accessToken = localStorage.getItem("jwt"); // 문자열 그대로
+    if (!accessToken) {
+      alert("로그인이 필요합니다.");
+      location.href = "/login";
+      return;
+    }
+    setToken(accessToken);
+  }, []);
 
   // ✅ 출석 정보 불러오기
   useEffect(() => {
-    fetch("http://localhost:8080/api/attendance/status/20250001")
+    if (!token) return;
+
+    fetch("http://localhost:8080/api/attendance/status", {
+      headers: {
+        Authorization: `Bearer ${token}`,
+      },
+    })
       .then((res) => res.json())
       .then((data) => {
         setAttendanceData(data);
@@ -17,7 +37,7 @@ const Attendance = () => {
       .catch((err) => {
         console.error("출석 정보 불러오기 실패:", err);
       });
-  }, []);
+  }, [token]);
 
   const selectedCourse = attendanceData.find(
     (c) => c.lectureId === selectedCourseId
@@ -52,7 +72,7 @@ const Attendance = () => {
         ))}
       </div>
 
-      {/* 오른쪽: 주차별 출석 상세 (항상 존재) */}
+      {/* 오른쪽: 주차별 출석 상세 */}
       <div className="weekly-view">
         {selectedCourse ? (
           <>

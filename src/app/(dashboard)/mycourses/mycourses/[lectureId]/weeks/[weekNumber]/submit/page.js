@@ -6,24 +6,48 @@ import { FaFileUpload } from "react-icons/fa";
 import "@/app/(dashboard)/mycourses/Submit.css";
 
 const SubmitAssignment = () => {
-  const { lectureId, weekNumber } = useParams(); // ✅ 수정: weekId → weekNumber
+  const { lectureId, weekNumber } = useParams();
 
   const [file, setFile] = useState(null);
   const [status, setStatus] = useState("");
   const [assignment, setAssignment] = useState(null);
+  const [token, setToken] = useState(null);
+
+// ✅ 토큰 꺼내기
+  useEffect(() => {
+    if (typeof window === "undefined") return;
+
+    const accessToken = localStorage.getItem("jwt"); // 👈 그냥 꺼내기 (JSON 파싱 ❌)
+
+    if (!accessToken) {
+      console.error("❌ 토큰 없음");
+      alert("로그인이 필요합니다.");
+      location.href = "/login";
+      return;
+    }
+
+    setToken(accessToken); // ✅ 상태에 저장
+  }, []);
 
   // ✅ 과제 정보 및 제출 상태 불러오기
   useEffect(() => {
-    const stdtId = 20250001;
+    if (!token) return;
 
-    fetch(`http://localhost:8080/api/mycourses/${lectureId}/week/${weekNumber}/assignment`)
+    fetch(`http://localhost:8080/api/mycourses/${lectureId}/week/${weekNumber}/assignment`, {
+      headers: {
+        "Authorization": `Bearer ${token}`,
+      },
+    })
       .then((res) => res.json())
       .then((data) => {
         setAssignment(data);
 
-        // ✅ 과제 제출 여부 확인
         if (data?.assignmentId) {
-          fetch(`http://localhost:8080/api/mycourses/assignments/${data.assignmentId}/submit`)
+          fetch(`http://localhost:8080/api/mycourses/assignments/${data.assignmentId}/submit`, {
+            headers: {
+              "Authorization": `Bearer ${token}`,
+            },
+          })
             .then((res) => res.json())
             .then((submitData) => {
               if (submitData?.submitted) {
@@ -35,12 +59,14 @@ const SubmitAssignment = () => {
       .catch((err) => {
         console.error("❌ 과제 정보 조회 실패:", err);
       });
-  }, [lectureId, weekNumber]);
+  }, [lectureId, weekNumber, token]);
 
+  // ✅ 파일 변경 처리
   const handleFileChange = (e) => {
     setFile(e.target.files[0]);
   };
 
+  // ✅ 과제 제출 처리
   const handleSubmit = async (e) => {
     e.preventDefault();
 
@@ -52,13 +78,15 @@ const SubmitAssignment = () => {
     const formData = new FormData();
     formData.append("file", file);
     formData.append("lectureId", lectureId);
-    formData.append("weekNumber", weekNumber); // ✅ weekNumber를 weekId로 전달
-    formData.append("stdtId", 20250001);
+    formData.append("weekNumber", weekNumber);
 
     try {
       const response = await fetch("http://localhost:8080/api/mycourses/submit", {
         method: "POST",
         body: formData,
+        headers: {
+          "Authorization": `Bearer ${token}`,
+        },
       });
 
       if (response.ok) {

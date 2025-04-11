@@ -8,7 +8,7 @@ import YouTube from "react-youtube";
 import "@/app/(dashboard)/mycourses/mycourses-view.css";
 
 const CourseDetail = () => {
-
+  const [userInfo, setUserInfo] = useState({});
   const { lectureId } = useParams();
   const [weeks, setWeeks] = useState([]);
   const [contents, setContents] = useState({});
