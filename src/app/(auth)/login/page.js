@@ -16,7 +16,7 @@ const Login = () => {
   const handleLogin = async (e) => {
     e.preventDefault();
     setLoading(true);
-    setError(""); // 이전 오류 초기화
+    setError("");
 
     try {
       const response = await fetch("http://localhost:8080/api/auth/login", {
@@ -27,20 +27,28 @@ const Login = () => {
         body: JSON.stringify({ username, password }),
       });
 
-      if (!response.ok) {
-        throw new Error("로그인 실패"); // 실패 시 에러 처리
-      }
+      if (!response.ok) throw new Error("로그인 실패");
 
-      const token = await response.json(); // JWT 문자열 응답
+      const token = await response.json();
       localStorage.setItem("jwt", token.accessToken);
 
+      // ✅ JWT 디코딩하여 역할 확인
+      const payload = JSON.parse(atob(token.accessToken.split(".")[1]));
+      const userRole = payload.role;
+
       alert("로그인 성공!");
-      router.push("/mycourses/mycourses"); // 로그인 후 페이지 이동
+
+      // ✅ 역할별 리디렉션
+      if (userRole === "PROFESSOR") {
+        window.location.href = "/prof/myLecture";
+      } else {
+        window.location.href = "/mycourses/mycourses";
+      }
     } catch (err) {
       console.error("❌ 로그인 오류:", err);
-      setError("아이디 또는 비밀번호가 올바르지 않습니다."); // 오류 메시지 설정
+      setError("아이디 또는 비밀번호가 올바르지 않습니다.");
     } finally {
-      setLoading(false); // 로딩 상태 종료
+      setLoading(false);
     }
   };
 

@@ -1,175 +1,191 @@
-'use client'
+'use client';
 
-import React, { useState } from "react";
+import React, { useEffect, useState } from "react";
 import "@/app/(dashboard)/mycourses/mycourses.css";
+import LectureList from "@/components/courses/LectureList";
+import LectureSearch from "@/components/courses/LectureSearch";
 
 const Cart = () => {
-  const [courseList] = useState([
-    { id: 1, code: 'CS101', name: '프로그래밍 기초', category: '전공필수', professor: '홍길동', schedule: '월 1-2교시' },
-    { id: 2, code: 'CS102', name: '자료구조', category: '전공선택', professor: '이몽룡', schedule: '화 3-4교시' },
-    { id: 3, code: 'CS103', name: '운영체제', category: '전공필수', professor: '성춘향', schedule: '수 5-6교시' },
-  ]);
-
+  const [courseList, setCourseList] = useState([]);
   const [cartList, setCartList] = useState([]);
   const [priorities, setPriorities] = useState({});
-  const [level, setLevel] = useState('');
-  const [professor, setProfessor] = useState('');
 
-  const addToCart = (course) => {
-    if (!cartList.find((c) => c.id === course.id)) {
-      setCartList([...cartList, course]);
+  // ✅ localStorage에서 초기값 불러오기
+  useEffect(() => {
+    fetchCourseList();
+
+    const savedCart = localStorage.getItem("cartList");
+    const savedPriorities = localStorage.getItem("priorities");
+
+    if (savedCart) setCartList(JSON.parse(savedCart));
+    if (savedPriorities) setPriorities(JSON.parse(savedPriorities));
+  }, []);
+
+  const updateLocalStorage = (cart, prios) => {
+    localStorage.setItem("cartList", JSON.stringify(cart));
+    localStorage.setItem("priorities", JSON.stringify(prios));
+  };
+
+  const fetchCourseList = async () => {
+    try {
+      const response = await fetch("http://localhost:8080/api/mycourses/cart", {
+        method: "GET",
+        headers: { "Content-Type": "application/json" },
+      });
+      if (!response.ok) throw new Error("서버 응답 실패");
+      const data = await response.json();
+      setCourseList(data);
+    } catch (error) {
+      console.error("강의 목록 불러오기 실패:", error);
     }
   };
 
-  const removeFromCart = (id) => {
-    setCartList(cartList.filter((c) => c.id !== id));
-    setPriorities((prev) => {
-      const newPriorities = { ...prev };
-      delete newPriorities[id];
-      return newPriorities;
-    });
+  const handleSearch = async (type, keyword) => {
+    if (!type) {
+      alert("검색조건을 선택해주세요.");
+      return;
+    }
+
+    try {
+      const url = keyword
+        ? `http://localhost:8080/api/mycourses/find/${type}/${keyword}`
+        : `http://localhost:8080/api/mycourses/find/${type}`;
+
+      const response = await fetch(url, {
+        method: "GET",
+        headers: { "Content-Type": "application/json" },
+      });
+
+      if (!response.ok) throw new Error("서버 응답 실패");
+      const data = await response.json();
+      setCourseList(data);
+    } catch (error) {
+      console.error("강의 목록 불러오기 실패:", error);
+    }
   };
 
-  const handlePriorityChange = (id, value) => {
-    setPriorities({ ...priorities, [id]: value });
+  const addToCart = (course) => {
+    if (cartList.find((c) => c.lectureId === course.lectureId)) {
+      alert("이미 장바구니에 담긴 과목입니다.");
+      return;
+    }
+    const newCart = [...cartList, course];
+    setCartList(newCart);
+    updateLocalStorage(newCart, priorities);
   };
 
-  const handleSave = () => {
-    alert('작업이 저장되었습니다!');
-    console.log('저장된 우선순위:', priorities);
+  const removeFromCart = (lectureId) => {
+    const newCart = cartList.filter((c) => c.lectureId !== lectureId);
+    const newPriorities = { ...priorities };
+    delete newPriorities[lectureId];
+    setCartList(newCart);
+    setPriorities(newPriorities);
+    updateLocalStorage(newCart, newPriorities);
+  };
+
+  const handlePriorityChange = (lectureId, value) => {
+    const newPriorities = { ...priorities, [lectureId]: value };
+    setPriorities(newPriorities);
+    updateLocalStorage(cartList, newPriorities);
+  };
+
+  const handleSave = async (e) => {
+    e?.preventDefault();
+
+    const payload = cartList.map((course) => ({
+      stdtId: 20250001,
+      lectureId: course.lectureId,
+      priorityOrder: parseInt(priorities[course.lectureId]) || null,
+    }));
+
+    try {
+      const res = await fetch("http://localhost:8080/api/mycourses/cart/priorities", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify(payload),
+      });
+
+      if (res.ok) {
+        alert("우선순위 저장 완료!");
+      } else {
+        alert("저장 실패: " + await res.text());
+      }
+    } catch (err) {
+      console.error("우선순위 저장 오류:", err);
+      alert("저장 중 오류 발생!");
+    }
   };
 
   return (
-    <div className="mb-3">
+    <div className="enrollment-container mb-3">
       <h5 className="fw-bold mb-0 border p-2 d-inline-block">검색</h5>
-      <div className="search-box">
-        <div className="search-box-row">
-          <div className="search-box-field">
-            <label className="form-label mb-0" style={{ width: '80px' }}>학과</label>
-            <select className="form-control">
-              <option>컴퓨터공학과</option>
-            </select>
-          </div>
-          <div className="search-box-field">
-            <label className="form-label mb-0" style={{ width: '80px' }}>강좌명</label>
-            <input className="form-control" />
-          </div>
-        </div>
+      <LectureSearch onSearch={handleSearch} />
 
-        <div className="search-box-row align-items-end">
-          <div className="search-box-field">
-            <label className="form-label mb-0" style={{ width: '80px' }}>교과목수준</label>
-            <select className="form-control" value={level} onChange={(e) => setLevel(e.target.value)}>
-              <option value="">전체</option>
-              <option value="학부">학부</option>
-            </select>
-          </div>
+      <h5 className="fw-bold mb-2 border p-2 d-inline-block mt-4">개설강좌 목록</h5>
+      <LectureList
+        lectures={courseList}
+        buttonLabel="담기"
+        onClick={addToCart}
+      />
 
-          <div className="search-box-field" style={{ display: 'flex', alignItems: 'center', gap: '8px', flexGrow: 1 }}>
-            <label className="form-label mb-0" style={{ width: '80px', whiteSpace: 'nowrap' }}>교수명</label>
-            <input
-              type="text"
-              className="form-control"
-              style={{ flexGrow: 1 }}
-              value={professor}
-              onChange={(e) => setProfessor(e.target.value)}
-            />
-            <button className="btn btn-primary" style={{ whiteSpace: 'nowrap' }}>조회</button>
-          </div>
-        </div>
+      <div className="d-flex align-items-center justify-content-between mb-2 mt-4">
+        <h5 className="fw-bold mb-0 border p-2 d-inline-block">장바구니 수강목록</h5>
+        <button className="btn btn-primary" onClick={handleSave}>작업저장</button>
       </div>
 
-      <div className="mb-3">
-        <h5 className="fw-bold mb-2 border p-2 d-inline-block">개설강좌 목록</h5>
-        <table className="table table-bordered text-center" style={{ tableLayout: 'fixed', width: '100%' }}>
-          <thead className="table-primary">
+      <table className="table table-bordered text-center" style={{ tableLayout: 'fixed', width: '100%' }}>
+        <thead className="table-primary">
+        <tr>
+          <th>NO</th>
+          <th>우선순위</th>
+          <th>삭제</th>
+          <th>이수구분</th>
+          <th>개설전공학과</th>
+          <th>교과목코드</th>
+          <th>교과목명</th>
+          <th>교과목 수준</th>
+          <th>학점</th>
+          <th>시간표</th>
+        </tr>
+        </thead>
+        <tbody>
+        {cartList.length === 0 ? (
           <tr>
-            <th>NO</th>
-            <th>장바구니</th>
-            <th>이수구분</th>
-            <th>교과목코드</th>
-            <th>교과목명</th>
-            <th>담당교수</th>
-            <th>시간표</th>
+            <td colSpan={10} className="text-muted">장바구니에 담긴 과목이 없습니다.</td>
           </tr>
-          </thead>
-          <tbody>
-          {courseList.map((course, index) => (
-            <tr key={course.id}>
+        ) : (
+          cartList.map((course, index) => (
+            <tr key={course.lectureId}>
               <td>{index + 1}</td>
               <td>
+                <input
+                  type="text"
+                  className="form-control"
+                  style={{ width: "80px" }}
+                  value={priorities[course.lectureId] || ''}
+                  onChange={(e) => handlePriorityChange(course.lectureId, e.target.value)}
+                />
+              </td>
+              <td>
                 <button
-                  className="btn btn-sm btn-outline-primary"
-                  onClick={() => addToCart(course)}
-                  disabled={cartList.find((c) => c.id === course.id)}
+                  className="btn btn-sm btn-outline-danger"
+                  onClick={() => removeFromCart(course.lectureId)}
                 >
-                  담기
+                  삭제
                 </button>
               </td>
-              <td>{course.category}</td>
-              <td>{course.code}</td>
-              <td>{course.name}</td>
-              <td>{course.professor}</td>
-              <td>{course.schedule}</td>
+              <td>{course.courseType}</td>
+              <td>{course.department}</td>
+              <td>{course.subjectCode}</td>
+              <td>{course.subjectName}</td>
+              <td>{course.subjectLevel}</td>
+              <td>{course.credit}</td>
+              <td>{course.timetable}</td>
             </tr>
-          ))}
-          </tbody>
-        </table>
-
-        <div className="d-flex align-items-center justify-content-between mb-2 mt-4">
-          <h5 className="fw-bold mb-0 border p-2 d-inline-block">장바구니 수강목록</h5>
-          <button className="btn btn-primary" onClick={handleSave}>작업저장</button>
-        </div>
-
-        <table className="table table-bordered text-center" style={{ tableLayout: 'fixed', width: '100%' }}>
-          <thead className="table-primary">
-          <tr>
-            <th>NO</th>
-            <th>우선순위</th>
-            <th>삭제</th>
-            <th>이수구분</th>
-            <th>교과목코드</th>
-            <th>교과목명</th>
-            <th>담당교수</th>
-            <th>시간표</th>
-          </tr>
-          </thead>
-          <tbody>
-          {cartList.length === 0 ? (
-            <tr>
-              <td colSpan={8} className="text-muted">장바구니에 담긴 과목이 없습니다.</td>
-            </tr>
-          ) : (
-            cartList.map((course, index) => (
-              <tr key={course.id}>
-                <td>{index + 1}</td>
-                <td colSpan={2}>
-                  <div style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
-                    <input
-                      type="text"
-                      className="form-control"
-                      value={priorities[course.id] || ''}
-                      onChange={(e) => handlePriorityChange(course.id, e.target.value)}
-                    />
-                    <button
-                      className="btn btn-sm btn-outline-danger"
-                      onClick={() => removeFromCart(course.id)}
-                    >
-                      삭제
-                    </button>
-                  </div>
-                </td>
-                <td>{course.category}</td>
-                <td>{course.code}</td>
-                <td>{course.name}</td>
-                <td>{course.professor}</td>
-                <td>{course.schedule}</td>
-              </tr>
-            ))
-          )}
-          </tbody>
-        </table>
-      </div>
+          ))
+        )}
+        </tbody>
+      </table>
     </div>
   );
 };

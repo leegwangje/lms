@@ -15,11 +15,11 @@ const CurrentCourses = () => {
     let token = null;
 
     try {
-      token = raw ;
-
+      token = raw;
     } catch (e) {
       console.error("❌ JWT 파싱 오류:", e);
       alert("토큰 파싱 오류");
+      localStorage.removeItem("jwt"); // 🔥 파싱 오류 시 토큰 제거
       location.href = "/login";
       return;
     }
@@ -39,7 +39,9 @@ const CurrentCourses = () => {
       credentials: "include",
     })
       .then((res) => {
-        if (!res.ok) throw new Error("인증 실패");
+        if (!res.ok) {
+          throw new Error("인증 실패");
+        }
         return res.json();
       })
       .then((data) => {
@@ -50,7 +52,8 @@ const CurrentCourses = () => {
       })
       .catch((err) => {
         console.error("❌ 수강 목록 조회 실패:", err);
-        alert("세션이 만료되었거나 인증이 필요합니다.");
+        alert("접근할 수 없는 페이지입니다."); // 🔥 메시지 수정
+        localStorage.removeItem("jwt"); // 🔥 토큰 제거
         location.href = "/login";
       });
   }, []);
