@@ -1,42 +1,70 @@
 'use client';
 
 import React, { useEffect, useState } from "react";
-import "@/app/(dashboard)/mycourses/mycourses.css";
+import "@/app/(dashboard)/mycourses/myCart.css";
 import LectureList from "@/components/courses/LectureList";
 import LectureSearch from "@/components/courses/LectureSearch";
+
+// ✅ JWT에서 stdtId 추출
+const raw = localStorage.getItem("jwt");
+const token = raw ? raw : null;
+
+let stdtId = null;
+if (token) {
+  try {
+    const payload = JSON.parse(atob(token.split(".")[1]));
+    stdtId = Number(payload.sub);
+  } catch (e) {
+    console.error("JWT 파싱 실패:", e);
+  }
+}
+
+const getAuthHeaders = () => ({
+  "Content-Type": "application/json",
+  Authorization: `Bearer ${token}`,
+});
 
 const Cart = () => {
   const [courseList, setCourseList] = useState([]);
   const [cartList, setCartList] = useState([]);
   const [priorities, setPriorities] = useState({});
 
-  // ✅ localStorage에서 초기값 불러오기
   useEffect(() => {
     fetchCourseList();
-
-    const savedCart = localStorage.getItem("cartList");
-    const savedPriorities = localStorage.getItem("priorities");
-
-    if (savedCart) setCartList(JSON.parse(savedCart));
-    if (savedPriorities) setPriorities(JSON.parse(savedPriorities));
+    fetchCartList();
   }, []);
-
-  const updateLocalStorage = (cart, prios) => {
-    localStorage.setItem("cartList", JSON.stringify(cart));
-    localStorage.setItem("priorities", JSON.stringify(prios));
-  };
 
   const fetchCourseList = async () => {
     try {
       const response = await fetch("http://localhost:8080/api/mycourses/cart", {
         method: "GET",
-        headers: { "Content-Type": "application/json" },
+        headers: getAuthHeaders(),
       });
       if (!response.ok) throw new Error("서버 응답 실패");
       const data = await response.json();
       setCourseList(data);
     } catch (error) {
       console.error("강의 목록 불러오기 실패:", error);
+    }
+  };
+
+  const fetchCartList = async () => {
+    try {
+      const res = await fetch(`http://localhost:8080/api/mycourses/cart/list/${stdtId}`, {
+        method: "GET",
+        headers: getAuthHeaders(),
+      });
+      if (!res.ok) throw new Error("장바구니 목록 요청 실패");
+      const data = await res.json();
+      setCartList(data);
+
+      const newPriorities = {};
+      data.forEach(item => {
+        newPriorities[item.lectureId] = item.priorityOrder;
+      });
+      setPriorities(newPriorities);
+    } catch (err) {
+      console.error("장바구니 동기화 실패:", err);
     }
   };
 
@@ -53,7 +81,7 @@ const Cart = () => {
 
       const response = await fetch(url, {
         method: "GET",
-        headers: { "Content-Type": "application/json" },
+        headers: getAuthHeaders(),
       });
 
       if (!response.ok) throw new Error("서버 응답 실패");
@@ -69,52 +97,98 @@ const Cart = () => {
       alert("이미 장바구니에 담긴 과목입니다.");
       return;
     }
-    const newCart = [...cartList, course];
+
+    // ✅ RegisterCartDTO 스타일로 local에 넣기
+    const newItem = {
+      stdtId: stdtId,
+      lectureId: course.lectureId,
+      priorityOrder: null,
+      courseType: course.courseType,
+      department: course.department,
+      subjectCode: course.subjectCode,
+      subjectName: course.subjectName,
+      subjectLevel: course.subjectLevel,
+      credit: course.credit,
+      timetable: course.timetable
+    };
+
+    const newCart = [...cartList, newItem];
     setCartList(newCart);
-    updateLocalStorage(newCart, priorities);
+
+    const newPriorities = { ...priorities };
+    newPriorities[course.lectureId] = null;
+    setPriorities(newPriorities);
   };
 
-  const removeFromCart = (lectureId) => {
-    const newCart = cartList.filter((c) => c.lectureId !== lectureId);
-    const newPriorities = { ...priorities };
-    delete newPriorities[lectureId];
-    setCartList(newCart);
-    setPriorities(newPriorities);
-    updateLocalStorage(newCart, newPriorities);
+  const removeFromCart = async (lectureId) => {
+    if (!window.confirm("정말 삭제하시겠습니까?")) return;
+
+    try {
+      const res = await fetch(`http://localhost:8080/api/mycourses/cart/remove?stdtId=${stdtId}&lectureId=${lectureId}`, {
+        method: "DELETE",
+        headers: getAuthHeaders(),
+      });
+
+      if (!res.ok) throw new Error(await res.text());
+
+      await fetchCartList();
+      alert("삭제 완료!");
+    } catch (err) {
+      alert("삭제 실패: " + err.message);
+      console.error("❌ 삭제 실패:", err);
+    }
   };
 
   const handlePriorityChange = (lectureId, value) => {
     const newPriorities = { ...priorities, [lectureId]: value };
     setPriorities(newPriorities);
-    updateLocalStorage(cartList, newPriorities);
   };
 
   const handleSave = async (e) => {
     e?.preventDefault();
 
     const payload = cartList.map((course) => ({
-      stdtId: 20250001,
+      stdtId,
       lectureId: course.lectureId,
       priorityOrder: parseInt(priorities[course.lectureId]) || null,
     }));
 
+    console.log("🚚 저장할 payload:", payload);
+
     try {
       const res = await fetch("http://localhost:8080/api/mycourses/cart/priorities", {
         method: "POST",
-        headers: { "Content-Type": "application/json" },
+        headers: getAuthHeaders(),
         body: JSON.stringify(payload),
       });
 
-      if (res.ok) {
-        alert("우선순위 저장 완료!");
-      } else {
-        alert("저장 실패: " + await res.text());
-      }
+      if (!res.ok) throw new Error("우선순위 저장 실패");
+
+      // 🔁 저장 후 다시 장바구니 데이터 불러오기
+      await fetchCartList();
+
+      // 여기선 cartList 상태를 로그로 출력
+      console.log("✅ 저장 후 cartList 재조회 완료:", cartList);
+
+      // 저장 성공 후 알림
+      alert("작업이 저장되었습니다.");
+
     } catch (err) {
-      console.error("우선순위 저장 오류:", err);
-      alert("저장 중 오류 발생!");
+      console.error("작업 저장 실패:", err);
     }
   };
+
+  //   if (res.ok) {
+  //     alert("우선순위 저장 완료!");
+  //     fetchCartList();
+  //   } else {
+  //     alert("저장 실패: " + await res.text());
+  //   }
+  // } catch (err) {
+  //   console.error("우선순위 저장 오류:", err);
+  //   alert("저장 중 오류 발생!");
+  // }
+
 
   return (
     <div className="enrollment-container mb-3">

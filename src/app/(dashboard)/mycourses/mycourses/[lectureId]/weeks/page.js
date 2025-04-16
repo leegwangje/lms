@@ -9,13 +9,11 @@ import "@/app/(dashboard)/mycourses/mycourses-view.css";
 
 const CourseDetail = () => {
   const { lectureId } = useParams();
-
   const [token, setToken] = useState(null);
   const [weeks, setWeeks] = useState([]);
   const [contents, setContents] = useState({});
   const [assignments, setAssignments] = useState([]);
 
-  // ✅ 토큰 꺼내기
   useEffect(() => {
     const accessToken = localStorage.getItem("jwt");
     if (!accessToken) {
@@ -26,7 +24,6 @@ const CourseDetail = () => {
     setToken(accessToken);
   }, []);
 
-  // ✅ 데이터 불러오기
   useEffect(() => {
     if (!token || !lectureId) return;
 
@@ -52,10 +49,14 @@ const CourseDetail = () => {
           )
             .then((res) => res.json())
             .then((contentList) => {
-              setContents((prev) => ({
-                ...prev,
-                [week.weekNumber]: contentList,
-              }));
+              if (Array.isArray(contentList)) {
+                setContents((prev) => ({
+                  ...prev,
+                  [week.weekNumber]: contentList,
+                }));
+              } else {
+                console.warn("📛 콘텐츠 응답이 배열이 아닙니다:", contentList);
+              }
             });
         });
       });
@@ -70,7 +71,6 @@ const CourseDetail = () => {
       .then((data) => setAssignments(data));
   }, [token, lectureId]);
 
-  // ✅ 출석 체크
   const handleWatchProgress = (e, content) => {
     if (e.data === 1 && token) {
       const duration = e.target.getDuration();
@@ -110,24 +110,26 @@ const CourseDetail = () => {
       <h1>강좌 상세보기</h1>
       <h2>주차별 학습 활동</h2>
 
-      {weeks.map((week, index) => (
-        <div key={`${week.weekNumber}`} className="week-section">
-          <h3>{index + 1}주차</h3>
+      {weeks.map((week, i) => (
+        <div key={`week-${lectureId}-${week.weekNumber}-${i}`} className="week-section">
+          <h3>{i + 1}주차</h3>
 
-          {/* 🎥 동영상 */}
           <div>
             <h4>동영상</h4>
-            {contents[week.weekNumber]?.map(
-              (c, idx) =>
-                c.youtubeVideoId && (
+            {Array.isArray(contents[week.weekNumber]) &&
+              contents[week.weekNumber].map((c, idx) => {
+                console.log("✅ 영상 ID:", c.youtubeVideoId);
+                console.log("✅ 영상 URL:", c.lectureCallUrl);
+
+                return c.youtubeVideoId ? (
                   <div
-                    key={`video-${week.weekNumber}-${idx}`}
+                    key={`video-${lectureId}-${week.weekNumber}-${idx}`}
                     style={{ marginBottom: "20px" }}
                   >
                     <h5>{c.chapterName}</h5>
                     <YouTube
                       videoId={c.youtubeVideoId}
-                      id={`player-${week.weekNumber}-${idx}`}
+                      id={`player-${lectureId}-${week.weekNumber}-${idx}`}
                       opts={{
                         width: "560",
                         height: "315",
@@ -139,42 +141,44 @@ const CourseDetail = () => {
                       onStateChange={(e) => handleWatchProgress(e, c)}
                     />
                   </div>
-                )
-            )}
+                ) : null;
+              })}
           </div>
 
-          {/* 📝 과제 제출 */}
           <div>
             <h4>과제 제출</h4>
             <Link
               href={`/mycourses/mycourses/${lectureId}/weeks/${week.weekNumber}/submit`}
             >
               <button className="submit-assignment-btn">
-                <FaUpload /> {index + 1}주차 과제 제출
+                <FaUpload /> {i + 1}주차 과제 제출
               </button>
             </Link>
           </div>
 
-          {/* 📚 학습 자료 */}
           <h4>학습 자료</h4>
           <ul>
-            {contents[week.weekNumber]?.map((c, idx) => (
-              <li key={`file-${week.weekNumber}-${idx}`} className="activity-item">
-                {c.fileName ? (
-                  <a
-                    href={`http://localhost/cdn/${c.fileName}`}
-                    target="_blank"
-                    rel="noopener noreferrer"
-                    download
-                    className="activity-link"
-                  >
-                    {c.fileName}
-                  </a>
-                ) : (
-                  <span className="activity-link">자료 없음</span>
-                )}
-              </li>
-            ))}
+            {Array.isArray(contents[week.weekNumber]) &&
+              contents[week.weekNumber].map((c, idx) => (
+                <li
+                  key={`file-${lectureId}-${week.weekNumber}-${idx}`}
+                  className="activity-item"
+                >
+                  {c.fileName ? (
+                    <a
+                      href={`http://localhost/cdn/${c.fileName}`}
+                      target="_blank"
+                      rel="noopener noreferrer"
+                      download
+                      className="activity-link"
+                    >
+                      {c.fileName}
+                    </a>
+                  ) : (
+                    <span className="activity-link">자료 없음</span>
+                  )}
+                </li>
+              ))}
           </ul>
         </div>
       ))}

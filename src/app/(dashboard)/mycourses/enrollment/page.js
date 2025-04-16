@@ -1,209 +1,285 @@
-'use client'
+'use client';
 
-import React, { useState } from "react";
-import "@/app/(dashboard)/mycourses/mycourses.css";
+import React, { useEffect, useRef, useState } from "react";
+import "@/app/(dashboard)/mycourses/myCart.css";
+import LectureList from "@/components/courses/LectureList";
+
+// ✅ 토큰과 stdtId 추출
+const raw = localStorage.getItem("jwt");
+const token = raw ? raw : null;
+
+let stdtId = null;
+if (token) {
+  try {
+    const payload = JSON.parse(atob(token.split(".")[1]));
+    stdtId = Number(payload.sub); // 👈 학번
+  } catch (e) {
+    console.error("JWT 파싱 실패:", e);
+  }
+}
+
+const getAuthHeaders = () => ({
+  "Content-Type": "application/json",
+  Authorization: `Bearer ${token}`,
+});
 
 const Enrollment = () => {
-  const dummyCourseList = [
-    { id: 1, code: "CS101", name: "프로그래밍 기초", professor: "홍길동", category: "전공필수", schedule: "월 1-2교시", level: "학부", credit: 3 },
-    { id: 2, code: "CS102", name: "자료구조", professor: "이몽룡", category: "전공선택", schedule: "화 3-4교시", level: "학부", credit: 3 }
-  ];
-
-  const courseList = dummyCourseList;
-
-  const [cartCourses, setCartCourses] = useState([
-    dummyCourseList[0]
-  ]);
+  const [courseList, setCourseList] = useState([]);
   const [enrolledCourses, setEnrolledCourses] = useState([]);
-  const [checkedCartCourseIds, setCheckedCartCourseIds] = useState([]);
-  const [level, setLevel] = useState("");
-  const [professor, setProfessor] = useState("");
+  const [cartList, setCartList] = useState([]);
 
-  const toggleEnrollment = (course) => {
-    if (!enrolledCourses.find((c) => c.id === course.id)) {
-      setEnrolledCourses([...enrolledCourses, course]);
+  const ftypeRef = useRef(null);
+  const fkeyRef = useRef(null);
+
+  useEffect(() => {
+    console.log("✅ cartList:", cartList);
+  }, [cartList]);
+
+  useEffect(() => {
+    fetchLectureList();
+    fetchEnrolledCourses();
+    fetchCartList();
+  }, []);
+
+  const fetchLectureList = async () => {
+    try {
+      const response = await fetch("http://localhost:8080/api/mycourses/enrollment/list", {
+        method: "GET",
+        headers: getAuthHeaders(),
+      });
+      if (!response.ok) throw new Error("서버 응답 실패");
+      const data = await response.json();
+      setCourseList(data);
+    } catch (error) {
+      console.error("강의 목록 불러오기 실패:", error);
     }
   };
 
-  const handleCartCheckboxToggle = (courseId) => {
-    if (checkedCartCourseIds.includes(courseId)) {
-      setCheckedCartCourseIds(checkedCartCourseIds.filter((id) => id !== courseId));
+  const fetchCartList = async () => {
+    try {
+      const res = await fetch(`http://localhost:8080/api/mycourses/cart/list/${stdtId}`, {
+        method: "GET",
+        headers: getAuthHeaders(),
+      });
+      if (!res.ok) throw new Error("장바구니 목록 요청 실패");
+      const data = await res.json();
+      setCartList(data);
+    } catch (err) {
+      console.error("장바구니 목록 불러오기 실패:", err);
+    }
+  };
+
+  const fetchEnrolledCourses = async () => {
+    try {
+      const res = await fetch(`http://localhost:8080/api/mycourses/enrolledList/${stdtId}`, {
+        method: "GET",
+        headers: getAuthHeaders(),
+      });
+      if (!res.ok) throw new Error("수강신청 내역 요청 실패");
+      const data = await res.json();
+      setEnrolledCourses(data);
+    } catch (err) {
+      console.error("수강신청 내역 불러오기 실패:", err);
+    }
+  };
+
+  const handleApply = async (course) => {
+    const lectureId = course.lectureId || course.lecture?.lectureId;
+    if (!lectureId) {
+      alert("강의 ID를 찾을 수 없습니다.");
+      return;
+    }
+
+    if (enrolledCourses.some(c => c.lectureId === lectureId)) {
+      alert("이미 신청된 강의입니다.");
+      return;
+    }
+
+    const data = {
+      stdtId,
+      lectureId,
+      applyDate: new Date().toISOString(),
+    };
+
+    try {
+      const response = await fetch("http://localhost:8080/api/mycourses/enroll", {
+        method: "POST",
+        headers: getAuthHeaders(),
+        body: JSON.stringify(data),
+      });
+
+      if (response.ok) {
+        alert("수강신청이 완료되었습니다!!");
+        fetchEnrolledCourses();
+      } else if (response.status === 400) {
+        alert(await response.text());
+      } else {
+        alert("수강신청에 실패했습니다!! 다시 시도해 주세요!");
+      }
+    } catch (error) {
+      console.error("❌ 수강신청 오류:", error);
+      alert("서버와 통신 중 오류가 발생했습니다!! 관리자에게 문의하세요!");
+    }
+  };
+
+  const handleCancel = async (course) => {
+    const lectureId = course.lectureId;
+
+    if (!window.confirm("정말 수강취소하시겠습니까?")) return;
+
+    try {
+      const res = await fetch(`http://localhost:8080/api/mycourses/remove/${stdtId}?lectureId=${lectureId}`, {
+        method: "GET",
+        headers: getAuthHeaders(),
+      });
+
+      if (res.ok) {
+        alert("수강취소 완료!");
+        fetchEnrolledCourses();
+      } else {
+        const msg = await res.text();
+        alert("수강취소 실패: " + msg);
+      }
+    } catch (err) {
+      console.error("❌ 수강취소 중 오류 발생", err);
+      alert("수강취소 중 오류 발생");
+    }
+  };
+
+  const handleBulkApply = async () => {
+    if (cartList.length === 0) {
+      alert("장바구니에 강좌가 없습니다.");
+      return;
+    }
+
+    const sortedList = [...cartList].sort((a, b) => {
+      const p1 = parseInt(a.priorityOrder ?? 9999, 10);
+      const p2 = parseInt(b.priorityOrder ?? 9999, 10);
+      return p1 - p2;
+    });
+
+    let successCount = 0;
+
+    for (const course of sortedList) {
+      const lectureId = course.lectureId || course.lecture?.lectureId;
+      if (!lectureId || enrolledCourses.some(c => c.lectureId === lectureId)) continue;
+
+      const data = {
+        stdtId,
+        lectureId,
+        applyDate: new Date().toISOString(),
+      };
+
+      try {
+        const response = await fetch("http://localhost:8080/api/mycourses/enroll", {
+          method: "POST",
+          headers: getAuthHeaders(),
+          body: JSON.stringify(data),
+        });
+
+        if (response.ok) successCount++;
+      } catch (error) {
+        console.error(`❌ 강의 ${lectureId} 신청 중 오류:`, error);
+      }
+    }
+
+    if (successCount > 0) {
+      alert(`${successCount}개의 강좌를 일괄 신청했습니다.`);
+      fetchEnrolledCourses();
     } else {
-      setCheckedCartCourseIds([...checkedCartCourseIds, courseId]);
+      alert("신청 가능한 강의가 없거나 모두 실패했습니다.");
     }
   };
 
-  const handleSelectAllCart = () => {
-    const allIds = cartCourses.map((c) => c.id);
-    setCheckedCartCourseIds(allIds);
+  const goLectureFind = async () => {
+    const findtype = ftypeRef.current.value;
+    const findkey = fkeyRef.current.value;
+
+    if (!findtype) {
+      alert("검색조건을 선택해주세요.");
+      return;
+    }
+
+    try {
+      const url = findkey
+        ? `http://localhost:8080/api/mycourses/find/${findtype}/${findkey}`
+        : `http://localhost:8080/api/mycourses/find/${findtype}`;
+
+      const response = await fetch(url, {
+        method: "GET",
+        headers: getAuthHeaders(),
+      });
+
+      if (!response.ok) throw new Error("서버 응답 실패");
+      const data = await response.json();
+      setCourseList(data);
+    } catch (error) {
+      console.error("강의 목록 불러오기 실패:", error);
+    }
   };
 
-  const handleApplyCheckedCourses = () => {
-    const selectedCourses = cartCourses.filter(
-      (course) =>
-        checkedCartCourseIds.includes(course.id) &&
-        !enrolledCourses.find((e) => e.id === course.id)
-    );
-    setEnrolledCourses([...enrolledCourses, ...selectedCourses]);
-    setCheckedCartCourseIds([]);
+  const renderEnrolledRows = () => {
+    if (enrolledCourses.length === 0) {
+      return <tr><td colSpan="9" className="text-muted">신청한 강좌가 없습니다.</td></tr>;
+    }
+    return enrolledCourses.map((course, index) => (
+      <tr key={course.registerId}>
+        <td>{index + 1}</td>
+        <td>
+          <button
+            className="btn btn-sm btn-outline-danger"
+            onClick={() => handleCancel(course)}
+          >
+            취소
+          </button>
+        </td>
+        <td>{course.courseType}</td>
+        <td>{course.department}</td>
+        <td>{course.subjectCode}</td>
+        <td>{course.subjectName}</td>
+        <td>{course.subjectLevel}</td>
+        <td>{course.credit}</td>
+        <td>{course.timetable}</td>
+      </tr>
+    ));
   };
 
-  const filteredCourses = courseList.filter(
-    (course) =>
-      (level === "" || course.level === level) &&
-      (professor === "" || course.professor.includes(professor))
-  );
-
-  const totalCredits = enrolledCourses.reduce((sum, course) => sum + course.credit, 0);
+  const totalCredits = enrolledCourses.reduce((sum, course) => sum + (parseInt(course.credit) || 0), 0);
 
   return (
-    <div className="mb-3">
+    <div className="enrollment-container mb-3">
       <h5 className="fw-bold mb-0 border p-2 d-inline-block">검색</h5>
-      {/* 검색 */}
       <div className="search-box">
-        <div className="search-box-row">
-          <div className="search-box-field">
-            <label className="form-label mb-0" style={{ width: '80px' }}>학과</label>
-            <select className="form-control">
-              <option>컴퓨터공학과</option>
-            </select>
-          </div>
-          <div className="search-box-field">
-            <label className="form-label mb-0" style={{ width: '80px' }}>강좌명</label>
-            <input className="form-control" />
-          </div>
-        </div>
-
         <div className="search-box-row align-items-end">
           <div className="search-box-field">
-            <label className="form-label mb-0" style={{ width: '80px' }}>교과목수준</label>
-            <select className="form-control" value={level} onChange={(e) => setLevel(e.target.value)}>
-              <option value="">전체</option>
-              <option value="학부">학부</option>
+            <label className="form-label mb-0" style={{ width: '80px' }}>검색조건</label>
+            <select className="form-control" ref={ftypeRef} defaultValue="">
+              <option value="">::선택::</option>
+              <option value="courseType">이수구분</option>
+              <option value="department">개설전공학과</option>
+              <option value="subjectCode">교과목코드</option>
+              <option value="subjectName">교과목명</option>
             </select>
           </div>
-
-          <div className="search-box-field" style={{ display: 'flex', alignItems: 'center', gap: '8px', flexGrow: 1 }}>
-            <label className="form-label mb-0" style={{ width: '80px', whiteSpace: 'nowrap' }}>교수명</label>
-            <input
-              type="text"
-              className="form-control"
-              style={{ flexGrow: 1 }}
-              value={professor}
-              onChange={(e) => setProfessor(e.target.value)}
-            />
-            <button className="btn btn-primary" style={{ whiteSpace: 'nowrap' }}>조회</button>
+          <div className="search-box-field d-flex align-items-center gap-2" style={{ flexGrow: 1 }}>
+            <label className="form-label mb-0" style={{ width: '80px' }}>검색어</label>
+            <input type="text" className="form-control" ref={fkeyRef} />
+            <button className="btn btn-primary" onClick={goLectureFind}>검색</button>
           </div>
         </div>
       </div>
-      {/* 장바구니 */}
-      <div className="d-flex align-items-center justify-content-between mb-2">
-        <h5 className="fw-bold mb-0 border p-2 d-inline-block">장바구니</h5>
-        <div className="d-flex gap-2">
-          <button className="btn btn-outline-secondary custom-btn" onClick={handleSelectAllCart}>
-            일괄선택
-          </button>
-          <button className="btn btn-outline-primary custom-btn" onClick={handleApplyCheckedCourses}>
-            신청하기
-          </button>
-        </div>
-      </div>
-      <table className="table table-bordered text-center" style={{ tableLayout: 'fixed', width: '100%' }}>
-        <thead className="table-primary">
-        <tr>
-          <th>NO</th>
-          <th>선택</th>
-          <th>신청</th>
-          <th>이수구분</th>
-          <th>교과목코드</th>
-          <th>교과목명</th>
-          <th>학점</th>
-          <th>담당교수</th>
-          <th>시간표</th>
-        </tr>
-        </thead>
-        <tbody>
-        {cartCourses.length === 0 ? (
-          <tr>
-            <td colSpan={9} className="text-muted">담긴 과목이 없습니다.</td>
-          </tr>
-        ) : (
-          cartCourses.map((course, index) => (
-            <tr key={course.id}>
-              <td>{index + 1}</td>
-              <td>
-                <input
-                  type="checkbox"
-                  checked={checkedCartCourseIds.includes(course.id)}
-                  onChange={() => handleCartCheckboxToggle(course.id)}
-                />
-              </td>
-              <td>
-                <button
-                  className="btn btn-sm btn-outline-primary"
-                  onClick={() => toggleEnrollment(course)}
-                  disabled={enrolledCourses.some((c) => c.id === course.id)}
-                >
-                  신청
-                </button>
-              </td>
-              <td>{course.category}</td>
-              <td>{course.code}</td>
-              <td>{course.name}</td>
-              <td>{course.credit}</td>
-              <td>{course.professor}</td>
-              <td>{course.schedule}</td>
-            </tr>
-          ))
-        )}
-        </tbody>
-      </table>
 
       {/* 개설강좌 */}
-      <div className="mb-4">
+      <div className="mb-4 mt-4">
         <h5 className="fw-bold mb-2 border p-2 d-inline-block">개설강좌 목록</h5>
-        <table className="table table-bordered text-center" style={{ tableLayout: 'fixed', width: '100%' }}>
-          <thead className="table-primary">
-          <tr>
-            <th>NO</th>
-            <th>신청</th>
-            <th>이수구분</th>
-            <th>교과목코드</th>
-            <th>교과목명</th>
-            <th>학점</th>
-            <th>담당교수</th>
-            <th>시간표</th>
-          </tr>
-          </thead>
-          <tbody>
-          {filteredCourses.length === 0 ? (
-            <tr>
-              <td colSpan={8} className="text-muted">데이터가 없습니다.</td>
-            </tr>
-          ) : (
-            filteredCourses.map((course, index) => (
-              <tr key={course.id}>
-                <td>{index + 1}</td>
-                <td>
-                  <button
-                    className="btn btn-sm btn-outline-primary"
-                    onClick={() => toggleEnrollment(course)}
-                    disabled={enrolledCourses.some((c) => c.id === course.id)}
-                  >
-                    신청
-                  </button>
-                </td>
-                <td>{course.category}</td>
-                <td>{course.code}</td>
-                <td>{course.name}</td>
-                <td>{course.credit}</td>
-                <td>{course.professor}</td>
-                <td>{course.schedule}</td>
-              </tr>
-            ))
-          )}
-          </tbody>
-        </table>
+        <LectureList lectures={courseList} buttonLabel="신청" onClick={handleApply} />
+      </div>
+
+      {/* 장바구니 강좌 */}
+      <div className="mb-4 mt-4">
+        <h5 className="fw-bold mb-2 border p-2 d-inline-block">장바구니 강좌</h5>
+        <button className="btn btn-primary" onClick={handleBulkApply}>일괄신청</button>
+        <LectureList lectures={cartList} buttonLabel="신청" onClick={handleApply} />
       </div>
 
       {/* 신청내역 */}
@@ -211,57 +287,24 @@ const Enrollment = () => {
         <div className="d-flex align-items-center justify-content-between mb-2">
           <h5 className="fw-bold mb-0 border p-2 d-inline-block">신청내역</h5>
           <div className="d-flex align-items-center gap-3">
-            <span style={{ fontSize: '0.9rem' }}>신청 과목 수:</span>
-            <div className="bg-primary text-white text-center" style={{ width: '18px', height: '18px', fontSize: '0.75rem', lineHeight: '18px', borderRadius: '2px' }}>
+            <span style={{ fontSize: "1rem" }}>신청 과목 수:</span>
+            <div className="bg-primary text-white text-center" style={{ width: "18px", height: "18px", fontSize: "0.75rem", lineHeight: "18px", borderRadius: "2px" }}>
               {enrolledCourses.length}
             </div>
-            <span style={{ fontSize: '0.9rem' }}>총 학점:</span>
-            <div className="bg-primary text-white text-center" style={{ width: '28px', height: '18px', fontSize: '0.75rem', lineHeight: '18px', borderRadius: '2px' }}>
+            <span style={{ fontSize: "0.9rem" }}>총 학점:</span>
+            <div className="bg-primary text-white text-center" style={{ width: "28px", height: "18px", fontSize: "0.75rem", lineHeight: "18px", borderRadius: "2px" }}>
               {totalCredits}
             </div>
           </div>
         </div>
-        <table className="table table-bordered text-center" style={{ tableLayout: 'fixed', width: '100%' }}>
+        <table className="table table-bordered text-center" style={{ tableLayout: "fixed", width: "100%" }}>
           <thead className="table-primary">
           <tr>
-            <th>NO</th>
-            <th>수강취소</th>
-            <th>이수구분</th>
-            <th>교과목코드</th>
-            <th>교과목명</th>
-            <th>학점</th>
-            <th>담당교수</th>
-            <th>시간표</th>
+            <th>NO</th><th>수강취소</th><th>이수구분</th><th>개설전공학과</th><th>교과목코드</th><th>교과목명</th><th>교과목 수준</th><th>학점</th><th>시간표</th>
           </tr>
           </thead>
           <tbody>
-          {enrolledCourses.length === 0 ? (
-            <tr>
-              <td colSpan={8} className="text-muted">담긴 과목이 없습니다.</td>
-            </tr>
-          ) : (
-            enrolledCourses.map((course, index) => (
-              <tr key={course.id}>
-                <td>{index + 1}</td>
-                <td>
-                  <button
-                    className="btn btn-sm btn-outline-danger"
-                    onClick={() =>
-                      setEnrolledCourses(enrolledCourses.filter((c) => c.id !== course.id))
-                    }
-                  >
-                    삭제
-                  </button>
-                </td>
-                <td>{course.category}</td>
-                <td>{course.code}</td>
-                <td>{course.name}</td>
-                <td>{course.credit}</td>
-                <td>{course.professor}</td>
-                <td>{course.schedule}</td>
-              </tr>
-            ))
-          )}
+          {renderEnrolledRows()}
           </tbody>
         </table>
       </div>
